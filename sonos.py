@@ -73,6 +73,9 @@ def cmd_volume(devices, args):
         print("Usage: volume <level> [device_index]")
         sys.exit(1)
     level = int(args[0])
+    if not 0 <= level <= 100:
+        print(f"Volume must be between 0 and 100 (got {level}).")
+        sys.exit(1)
     d = get_device(devices, int(args[1]) if len(args) > 1 else 0)
     d.volume = level
     print(f"Set volume to {level} on {d.player_name}")
