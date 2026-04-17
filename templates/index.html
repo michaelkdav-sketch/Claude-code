@@ -3,9 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#111827">
   <title>Lights</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     :root {
       --bg: #111827;
       --surface: #1f2937;
@@ -15,26 +18,50 @@
       --on-text: #fbbf24;
       --text: #f9fafb;
       --muted: #9ca3af;
-      --radius: 16px;
+      --radius: 18px;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
     }
     body {
       background: var(--bg);
       color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       min-height: 100vh;
-      padding-bottom: 48px;
+      padding-bottom: calc(32px + var(--safe-bottom));
     }
+
+    /* ── Header ── */
     header {
-      padding: 24px 20px 16px;
+      padding: calc(16px + var(--safe-top)) 20px 14px;
       border-bottom: 1px solid #1f2937;
       position: sticky;
       top: 0;
       background: var(--bg);
       z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
     }
-    header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
+    .header-left h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
     #subtitle { color: var(--muted); font-size: 13px; margin-top: 3px; }
 
+    #btn-all-off {
+      flex-shrink: 0;
+      background: var(--surface2);
+      color: var(--text);
+      border: none;
+      border-radius: 20px;
+      padding: 8px 16px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      min-height: 44px;
+      transition: background 0.15s, transform 0.1s;
+    }
+    #btn-all-off:active { background: #4b5563; transform: scale(0.96); }
+
+    /* ── Rooms ── */
     .rooms { padding: 0 16px; }
     .room { margin-top: 28px; }
     .room-title {
@@ -48,10 +75,11 @@
     }
     .devices { display: grid; gap: 8px; }
 
+    /* ── Device card ── */
     .device {
       background: var(--surface);
       border-radius: var(--radius);
-      padding: 16px;
+      padding: 18px 16px;
       transition: background 0.2s;
     }
     .device.on { background: var(--on-bg); }
@@ -61,19 +89,21 @@
       align-items: center;
       justify-content: space-between;
       gap: 12px;
+      min-height: 44px;
     }
     .device-name {
-      font-size: 15px;
+      font-size: 16px;
       font-weight: 500;
       flex: 1;
       transition: color 0.2s;
     }
     .device.on .device-name { color: var(--on-text); }
 
+    /* ── Toggle ── */
     .toggle {
       position: relative;
-      width: 50px;
-      height: 28px;
+      width: 54px;
+      height: 32px;
       flex-shrink: 0;
     }
     .toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
@@ -81,7 +111,7 @@
       position: absolute;
       inset: 0;
       background: var(--surface2);
-      border-radius: 14px;
+      border-radius: 16px;
       cursor: pointer;
       transition: background 0.2s;
     }
@@ -89,55 +119,60 @@
     .track::after {
       content: '';
       position: absolute;
-      width: 22px; height: 22px;
+      width: 26px; height: 26px;
       background: white;
       border-radius: 50%;
       top: 3px; left: 3px;
       transition: transform 0.2s;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.35);
     }
     .toggle input:checked ~ .track::after { transform: translateX(22px); }
 
+    /* ── Slider ── */
     .slider-row {
       display: flex;
       align-items: center;
-      gap: 10px;
-      margin-top: 14px;
+      gap: 12px;
+      margin-top: 16px;
     }
     .pct {
-      font-size: 12px;
+      font-size: 13px;
       color: var(--muted);
-      min-width: 34px;
+      min-width: 36px;
       text-align: right;
       font-variant-numeric: tabular-nums;
     }
-    .device.on .pct { color: var(--on-text); opacity: 0.7; }
+    .device.on .pct { color: var(--on-text); opacity: 0.75; }
 
     input[type=range] {
       flex: 1;
       -webkit-appearance: none;
       appearance: none;
-      height: 4px;
+      height: 6px;
       background: var(--surface2);
-      border-radius: 2px;
+      border-radius: 3px;
       outline: none;
       cursor: pointer;
+      /* expand touch target vertically */
+      padding: 12px 0;
+      background-clip: content-box;
     }
-    .device.on input[type=range] { background: #4a3510; }
+    .device.on input[type=range] { background-color: #4a3510; }
     input[type=range]::-webkit-slider-thumb {
       -webkit-appearance: none;
-      width: 20px; height: 20px;
+      width: 26px; height: 26px;
       background: var(--accent);
       border-radius: 50%;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+      box-shadow: 0 1px 5px rgba(0,0,0,0.4);
     }
     input[type=range]::-moz-range-thumb {
-      width: 20px; height: 20px;
+      width: 26px; height: 26px;
       background: var(--accent);
       border-radius: 50%;
       border: none;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+      box-shadow: 0 1px 5px rgba(0,0,0,0.4);
     }
+    input[type=range]:active::-webkit-slider-thumb { transform: scale(1.15); }
 
     #loading {
       text-align: center;
@@ -149,8 +184,11 @@
 </head>
 <body>
   <header>
-    <h1>Lights</h1>
-    <div id="subtitle">Connecting…</div>
+    <div class="header-left">
+      <h1>Lights</h1>
+      <div id="subtitle">Connecting…</div>
+    </div>
+    <button id="btn-all-off" onclick="allOff()">All Off</button>
   </header>
   <div id="loading">Loading devices…</div>
   <div class="rooms" id="rooms" hidden></div>
@@ -171,14 +209,10 @@
       try {
         const r = await fetch('/api/devices');
         const fresh = await r.json();
-        // Merge levels without full re-render if devices already shown
         if (devices.length && fresh.length === devices.length) {
           fresh.forEach(d => {
             const old = devices.find(x => x.id === d.id);
-            if (old && old.level !== d.level) {
-              old.level = d.level;
-              updateCard(old);
-            }
+            if (old && old.level !== d.level) { old.level = d.level; updateCard(old); }
           });
           devices = fresh;
           updateSubtitle();
@@ -279,6 +313,12 @@
         body: JSON.stringify({ level: parseInt(value) }),
       });
       if (d) { d.level = parseInt(value); updateCard(d); updateSubtitle(); }
+    }
+
+    async function allOff() {
+      await fetch('/api/all/off', { method: 'POST' });
+      devices.forEach(d => { d.level = 0; updateCard(d); });
+      updateSubtitle();
     }
 
     fetchDevices();

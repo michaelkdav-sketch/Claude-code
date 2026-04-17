@@ -2,14 +2,16 @@
 """Lutron web controller - browser UI for local Lutron control."""
 
 import asyncio
+import ipaddress
 import json
 import os
 import threading
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, abort, jsonify, render_template, request
 from pylutron_caseta.smartbridge import Smartbridge
 
 CONFIG_FILE = os.path.expanduser("~/.lutron_config.json")
+LAN_NETWORK = ipaddress.ip_network("192.168.0.0/24")
 
 app = Flask(__name__)
 _bridge = None
@@ -45,6 +47,13 @@ def _bridge_thread():
 
 def _run(coro):
     return asyncio.run_coroutine_threadsafe(coro, _loop).result(timeout=10)
+
+
+@app.before_request
+def restrict_to_lan():
+    ip = ipaddress.ip_address(request.remote_addr)
+    if ip != ipaddress.ip_address("127.0.0.1") and ip not in LAN_NETWORK:
+        abort(403)
 
 
 @app.route("/")
@@ -85,6 +94,15 @@ def api_off(device_id):
 def api_level(device_id):
     level = int(request.json["level"])
     _run(_bridge.set_value(device_id, level))
+    return jsonify({"ok": True})
+
+
+@app.route("/api/all/off", methods=["POST"])
+def api_all_off():
+    raw = _bridge.get_devices()
+    for device_id, d in raw.items():
+        if d.get("type") in ("WallDimmer", "WallSwitch"):
+            _run(_bridge.turn_off(device_id))
     return jsonify({"ok": True})
 
 
