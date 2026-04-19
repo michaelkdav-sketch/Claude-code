@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Lutron web controller - browser UI for local Lutron control."""
 
+import argparse
 import asyncio
 import ipaddress
 import json
@@ -107,9 +108,13 @@ def api_all_off():
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", 5002)))
+    args = parser.parse_args()
+
     t = threading.Thread(target=_bridge_thread, daemon=True)
     t.start()
     print("Connecting to Lutron bridge...")
     _ready.wait()
-    print("Connected. Open http://localhost:5002 in your browser.")
-    app.run(host="0.0.0.0", port=5002, debug=False)
+    print(f"Connected. Open http://localhost:{args.port} in your browser.")
+    app.run(host="0.0.0.0", port=args.port, debug=False)
