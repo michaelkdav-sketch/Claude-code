@@ -111,5 +111,5 @@ if __name__ == "__main__":
     t.start()
     print("Connecting to Lutron bridge...")
     _ready.wait()
-    print("Connected. Open http://localhost:5001 in your browser.")
-    app.run(host="0.0.0.0", port=5001, debug=False)
+    print("Connected. Open http://localhost:5002 in your browser.")
+    app.run(host="0.0.0.0", port=5002, debug=False)
