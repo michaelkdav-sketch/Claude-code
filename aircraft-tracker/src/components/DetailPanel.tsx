@@ -8,9 +8,10 @@ import type { Aircraft } from '@/lib/providers/types'
 interface Props {
   aircraft: Aircraft | null
   onClose: () => void
+  trackPointCount?: number
 }
 
-export default function DetailPanel({ aircraft: ac, onClose }: Props) {
+export default function DetailPanel({ aircraft: ac, onClose, trackPointCount = 0 }: Props) {
   if (!ac) return null
 
   const milConf = Math.min(Math.round(ac.military.confidence * 100), 99)
@@ -129,6 +130,21 @@ export default function DetailPanel({ aircraft: ac, onClose }: Props) {
           <p className="mt-3 text-xs italic text-zinc-700">
             Heuristic scoring — not definitive.
           </p>
+
+        {/* Track status */}
+        <div className="rounded-lg border border-border bg-card p-3">
+          <p className="text-xs uppercase tracking-wider text-zinc-600">Flight Path</p>
+          {trackPointCount > 1 ? (
+            <p className="mt-1 text-sm text-zinc-300">
+              Showing last{' '}
+              <span className="font-mono text-sky-400">{trackPointCount}</span> positions on map
+            </p>
+          ) : (
+            <p className="mt-1 text-xs text-zinc-600">
+              No track yet — path builds while the aircraft stays in range.
+            </p>
+          )}
+        </div>
         </div>
       </div>
 

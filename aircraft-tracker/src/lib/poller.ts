@@ -6,8 +6,8 @@ import type { Aircraft, AppStatus } from './providers/types'
 
 const provider = new AdsbLolProvider()
 
-const HOME_LAT = parseFloat(process.env.HOME_LAT ?? '32.7157')
-const HOME_LON = parseFloat(process.env.HOME_LON ?? '-117.1611')
+const HOME_LAT = parseFloat(process.env.HOME_LAT ?? '32.7280')
+const HOME_LON = parseFloat(process.env.HOME_LON ?? '-117.2385')
 const HOME_RADIUS_MILES = parseFloat(process.env.HOME_RADIUS_MILES ?? '25')
 const POLL_INTERVAL_MS = Math.max(5, parseInt(process.env.POLL_INTERVAL_SECS ?? '10')) * 1000
 const HISTORY_DAYS = parseInt(process.env.HISTORY_DAYS ?? '7')

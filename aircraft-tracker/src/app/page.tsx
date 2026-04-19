@@ -54,6 +54,17 @@ export default function Dashboard() {
     return () => clearTimeout(t)
   }, [data])
 
+  // Fetch per-aircraft track when something is selected
+  const { data: detailData } = useSWR(
+    selectedHex ? `/api/aircraft/${selectedHex}` : null,
+    fetcher,
+    { refreshInterval: 15_000, revalidateOnFocus: false },
+  )
+
+  const trackPoints: { lat: number; lon: number }[] = (detailData?.track ?? [])
+    .filter((p: { lat: number | null; lon: number | null }) => p.lat != null && p.lon != null)
+    .map((p: { lat: number; lon: number }) => ({ lat: p.lat, lon: p.lon }))
+
   const selectedAircraft = aircraft.find((a) => a.hex === selectedHex) ?? null
 
   const handleSelect = (hex: string) =>
@@ -102,6 +113,7 @@ export default function Dashboard() {
               radiusNm={config.radiusNm}
               selectedHex={selectedHex}
               onAircraftClick={handleSelect}
+              trackPoints={trackPoints}
             />
           ) : (
             <MapPlaceholder />
@@ -137,7 +149,11 @@ export default function Dashboard() {
               selectedAircraft ? 'translate-x-0' : 'translate-x-full'
             }`}
           >
-            <DetailPanel aircraft={selectedAircraft} onClose={() => setSelectedHex(null)} />
+            <DetailPanel
+              aircraft={selectedAircraft}
+              onClose={() => setSelectedHex(null)}
+              trackPointCount={trackPoints.length}
+            />
           </div>
         </div>
       </div>
