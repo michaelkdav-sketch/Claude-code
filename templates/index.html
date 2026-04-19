@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sonos Controller</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #111;
+      color: #eee;
+      min-height: 100vh;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      background: #1a1a1a;
+      border-bottom: 1px solid #2a2a2a;
+    }
+
+    header h1 { font-size: 18px; font-weight: 600; letter-spacing: 0.05em; }
+
+    .refresh-btn {
+      background: none;
+      border: 1px solid #444;
+      color: #aaa;
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .refresh-btn:hover { border-color: #888; color: #eee; }
+
+    .layout {
+      display: flex;
+      height: calc(100vh - 57px);
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 220px;
+      background: #161616;
+      border-right: 1px solid #2a2a2a;
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+
+    .sidebar h2 {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #666;
+      padding: 16px 16px 8px;
+    }
+
+    .device-item {
+      padding: 10px 16px;
+      cursor: pointer;
+      border-left: 3px solid transparent;
+      font-size: 14px;
+    }
+    .device-item:hover { background: #1f1f1f; }
+    .device-item.active { border-left-color: #1db954; background: #1a1a1a; }
+    .device-item .dev-name { font-weight: 500; }
+    .device-item .dev-state { font-size: 11px; color: #666; margin-top: 2px; }
+    .device-item.active .dev-state { color: #1db954; }
+
+    .no-devices {
+      padding: 16px;
+      font-size: 13px;
+      color: #555;
+    }
+
+    /* Main */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Now playing */
+    .now-playing {
+      padding: 32px;
+      display: flex;
+      gap: 24px;
+      align-items: center;
+      background: linear-gradient(180deg, #1a1a1a 0%, #111 100%);
+      border-bottom: 1px solid #2a2a2a;
+    }
+
+    .album-art {
+      width: 100px;
+      height: 100px;
+      border-radius: 8px;
+      background: #2a2a2a;
+      flex-shrink: 0;
+      object-fit: cover;
+    }
+
+    .album-art-placeholder {
+      width: 100px;
+      height: 100px;
+      border-radius: 8px;
+      background: #2a2a2a;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 36px;
+    }
+
+    .track-info { flex: 1; min-width: 0; }
+    .track-info .title {
+      font-size: 20px;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .track-info .artist { font-size: 14px; color: #aaa; margin-top: 4px; }
+    .track-info .album  { font-size: 13px; color: #666; margin-top: 2px; }
+    .track-info .idle   { font-size: 16px; color: #555; }
+
+    /* Controls */
+    .controls {
+      padding: 20px 32px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: #1a1a1a;
+      border-bottom: 1px solid #2a2a2a;
+    }
+
+    .ctrl-btn {
+      background: none;
+      border: none;
+      color: #ccc;
+      cursor: pointer;
+      padding: 8px;
+      border-radius: 50%;
+      font-size: 20px;
+      line-height: 1;
+      transition: color 0.15s, background 0.15s;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .ctrl-btn:hover { color: #fff; background: #2a2a2a; }
+    .ctrl-btn.primary {
+      width: 48px; height: 48px;
+      background: #1db954;
+      color: #000;
+      font-size: 22px;
+    }
+    .ctrl-btn.primary:hover { background: #1ed760; }
+
+    .volume-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-left: auto;
+    }
+    .volume-group span { font-size: 13px; color: #666; min-width: 28px; text-align: right; }
+
+    input[type=range] {
+      -webkit-appearance: none;
+      width: 100px;
+      height: 4px;
+      background: #333;
+      border-radius: 2px;
+      outline: none;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: #fff;
+      cursor: pointer;
+    }
+    input[type=range]::-moz-range-thumb {
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: #fff;
+      cursor: pointer;
+      border: none;
+    }
+
+    /* Queue */
+    .queue-section { flex: 1; overflow-y: auto; }
+    .queue-section h2 {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #666;
+      padding: 16px 24px 8px;
+    }
+
+    .queue-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 24px;
+      cursor: pointer;
+    }
+    .queue-item:hover { background: #1a1a1a; }
+    .queue-item.playing { background: #1a1a1a; }
+
+    .queue-art {
+      width: 40px; height: 40px;
+      border-radius: 4px;
+      background: #2a2a2a;
+      flex-shrink: 0;
+      object-fit: cover;
+    }
+    .queue-art-placeholder {
+      width: 40px; height: 40px;
+      border-radius: 4px;
+      background: #2a2a2a;
+      flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+    }
+
+    .queue-text { flex: 1; min-width: 0; }
+    .queue-text .q-title {
+      font-size: 14px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .queue-text .q-artist { font-size: 12px; color: #666; }
+    .queue-item.playing .q-title { color: #1db954; }
+
+    .queue-idx { font-size: 12px; color: #555; min-width: 24px; text-align: right; }
+
+    .empty-state {
+      padding: 32px;
+      font-size: 14px;
+      color: #555;
+      text-align: center;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      margin-left: 8px;
+    }
+    .badge-play  { background: #1db954; color: #000; }
+    .badge-pause { background: #555;    color: #eee; }
+    .badge-stop  { background: #333;    color: #999; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>&#9654; Sonos</h1>
+  <button class="refresh-btn" onclick="refresh()">Refresh devices</button>
+</header>
+
+<div class="layout">
+  <aside class="sidebar">
+    <h2>Rooms</h2>
+    <div id="device-list"><div class="no-devices">Discovering…</div></div>
+  </aside>
+
+  <div class="main">
+    <div class="now-playing" id="now-playing">
+      <div class="album-art-placeholder">&#127925;</div>
+      <div class="track-info"><div class="idle">Select a room</div></div>
+    </div>
+
+    <div class="controls" id="controls" style="display:none">
+      <button class="ctrl-btn" onclick="cmd('prev')" title="Previous">&#9664;&#9664;</button>
+      <button class="ctrl-btn primary" id="play-pause-btn" onclick="togglePlay()">&#9654;</button>
+      <button class="ctrl-btn" onclick="cmd('next')" title="Next">&#9654;&#9654;</button>
+      <button class="ctrl-btn" id="mute-btn" onclick="toggleMute()" title="Mute">&#128266;</button>
+      <div class="volume-group">
+        <input type="range" id="vol-slider" min="0" max="100" value="20"
+               oninput="setVolume(this.value)" onchange="setVolume(this.value)">
+        <span id="vol-label">20</span>
+      </div>
+    </div>
+
+    <div class="queue-section">
+      <h2>Queue</h2>
+      <div id="queue-list"><div class="empty-state">No queue</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let selectedIp = null;
+  let currentState = null;
+  let pollTimer = null;
+
+  async function apiFetch(path, method = 'GET', body = null) {
+    const opts = { method, headers: { 'Content-Type': 'application/json' } };
+    if (body) opts.body = JSON.stringify(body);
+    const r = await fetch(path, opts);
+    return r.json();
+  }
+
+  async function loadDevices() {
+    const devs = await apiFetch('/api/devices');
+    const list = document.getElementById('device-list');
+    if (!devs.length) {
+      list.innerHTML = '<div class="no-devices">No devices found</div>';
+      return;
+    }
+    list.innerHTML = devs.map(d => {
+      const stateLabel = d.state === 'PLAYING' ? 'Playing' : d.state === 'PAUSED_PLAYBACK' ? 'Paused' : 'Stopped';
+      return `<div class="device-item ${d.ip === selectedIp ? 'active' : ''}" onclick="selectDevice('${d.ip}')">
+        <div class="dev-name">${d.name}</div>
+        <div class="dev-state">${stateLabel}</div>
+      </div>`;
+    }).join('');
+    if (!selectedIp && devs.length) selectDevice(devs[0].ip);
+  }
+
+  function selectDevice(ip) {
+    selectedIp = ip;
+    document.querySelectorAll('.device-item').forEach(el => {
+      el.classList.toggle('active', el.onclick.toString().includes(`'${ip}'`));
+    });
+    document.getElementById('controls').style.display = 'flex';
+    pollState();
+    startPolling();
+  }
+
+  async function pollState() {
+    if (!selectedIp) return;
+    try {
+      const s = await apiFetch(`/api/state/${selectedIp}`);
+      currentState = s;
+      renderState(s);
+    } catch (e) { console.error(e); }
+  }
+
+  function renderState(s) {
+    // Now playing
+    const np = document.getElementById('now-playing');
+    const artHtml = s.album_art
+      ? `<img class="album-art" src="${s.album_art}" onerror="this.style.display='none'">`
+      : `<div class="album-art-placeholder">&#127925;</div>`;
+    const trackHtml = s.title
+      ? `<div class="title">${s.title}</div>
+         <div class="artist">${s.artist || 'Unknown artist'}</div>
+         <div class="album">${s.album || ''}</div>`
+      : `<div class="idle">Nothing playing</div>`;
+    np.innerHTML = `${artHtml}<div class="track-info">${trackHtml}</div>`;
+
+    // Play/pause button
+    const btn = document.getElementById('play-pause-btn');
+    btn.innerHTML = s.state === 'PLAYING' ? '&#9646;&#9646;' : '&#9654;';
+
+    // Mute button
+    document.getElementById('mute-btn').innerHTML = s.mute ? '&#128263;' : '&#128266;';
+
+    // Volume
+    const slider = document.getElementById('vol-slider');
+    slider.value = s.volume;
+    document.getElementById('vol-label').textContent = s.volume;
+  }
+
+  async function loadQueue() {
+    if (!selectedIp) return;
+    const items = await apiFetch(`/api/queue/${selectedIp}`);
+    const el = document.getElementById('queue-list');
+    if (!items.length) { el.innerHTML = '<div class="empty-state">Queue is empty</div>'; return; }
+    const title = currentState && currentState.title;
+    el.innerHTML = items.map(item => {
+      const active = item.title === title;
+      const art = item.album_art
+        ? `<img class="queue-art" src="${item.album_art}" onerror="this.style.display='none'">`
+        : `<div class="queue-art-placeholder">&#127925;</div>`;
+      return `<div class="queue-item ${active ? 'playing' : ''}" onclick="playQueueItem(${item.index})">
+        ${art}
+        <div class="queue-text">
+          <div class="q-title">${item.title}</div>
+          <div class="q-artist">${item.artist}</div>
+        </div>
+        <div class="queue-idx">${item.index + 1}</div>
+      </div>`;
+    }).join('');
+  }
+
+  async function togglePlay() {
+    if (!selectedIp) return;
+    if (currentState && currentState.state === 'PLAYING') {
+      await apiFetch(`/api/pause/${selectedIp}`, 'POST');
+    } else {
+      await apiFetch(`/api/play/${selectedIp}`, 'POST');
+    }
+    setTimeout(pollState, 300);
+  }
+
+  async function cmd(action) {
+    if (!selectedIp) return;
+    await apiFetch(`/api/${action}/${selectedIp}`, 'POST');
+    setTimeout(pollState, 500);
+  }
+
+  async function toggleMute() {
+    if (!selectedIp) return;
+    await apiFetch(`/api/mute/${selectedIp}`, 'POST');
+    setTimeout(pollState, 300);
+  }
+
+  let volDebounce;
+  function setVolume(val) {
+    document.getElementById('vol-label').textContent = val;
+    clearTimeout(volDebounce);
+    volDebounce = setTimeout(() => {
+      apiFetch(`/api/volume/${selectedIp}`, 'POST', { level: parseInt(val) });
+    }, 150);
+  }
+
+  async function playQueueItem(index) {
+    if (!selectedIp) return;
+    await apiFetch(`/api/queue/${selectedIp}/play/${index}`, 'POST');
+    setTimeout(() => { pollState(); loadQueue(); }, 500);
+  }
+
+  async function refresh() {
+    await apiFetch('/api/refresh', 'POST');
+    selectedIp = null;
+    loadDevices();
+  }
+
+  function startPolling() {
+    clearInterval(pollTimer);
+    pollTimer = setInterval(() => { pollState(); loadQueue(); }, 3000);
+  }
+
+  // Init
+  loadDevices().then(() => { if (selectedIp) { loadQueue(); startPolling(); } });
+</script>
+</body>
+</html>
