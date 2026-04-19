@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Live View — RingVision{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+  <div class="flex items-center justify-between">
+    <h1 class="text-2xl font-bold text-white">Live View</h1>
+    <div class="flex items-center gap-2">
+      <span id="mode-badge"
+            class="{% if stream_url %}badge badge-green{% else %}badge badge-yellow{% endif %}">
+        {% if stream_url %}LIVE STREAM{% else %}SNAPSHOT MODE{% endif %}
+      </span>
+    </div>
+  </div>
+
+  <div class="card p-4">
+    {% if stream_url %}
+    <video id="live-video" class="w-full rounded-lg aspect-video bg-black" controls autoplay muted
+           src="{{ stream_url }}">
+      Your browser does not support video playback.
+    </video>
+    <p class="text-xs text-gray-500 mt-2">Stream URL: {{ stream_url[:80] }}…</p>
+    {% else %}
+    <!-- Snapshot refresh mode -->
+    <div class="relative aspect-video bg-gray-900 rounded-lg overflow-hidden">
+      <img id="snap-img"
+           src="/live/snapshot?t={{ loop.index if loop else '0' }}"
+           alt="Live snapshot"
+           class="w-full h-full object-cover" />
+      <div class="absolute bottom-3 right-3">
+        <span class="badge badge-yellow text-xs">SNAPSHOT</span>
+      </div>
+      <div id="refresh-indicator"
+           class="absolute top-3 right-3 w-2 h-2 rounded-full bg-yellow-400 opacity-0 transition-opacity"></div>
+    </div>
+    <p class="text-xs text-gray-500 mt-2">
+      Refreshing every 3 seconds — live stream not available. Ring recording stream is used when available.
+    </p>
+    {% endif %}
+  </div>
+
+  <div class="card p-4">
+    <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">Status</h2>
+    <div class="grid grid-cols-2 gap-4 text-sm">
+      <div>
+        <span class="text-gray-500">Mode:</span>
+        <span class="ml-2 text-gray-200">{% if stream_url %}Live Stream{% else %}Snapshot Refresh{% endif %}</span>
+      </div>
+      <div>
+        <span class="text-gray-500">Refresh:</span>
+        <span class="ml-2 text-gray-200">{% if stream_url %}Continuous{% else %}Every 3s{% endif %}</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+{% if not stream_url %}
+<script>
+  const img = document.getElementById('snap-img');
+  const indicator = document.getElementById('refresh-indicator');
+  let active = true;
+
+  async function refreshSnap() {
+    if (!active) return;
+    try {
+      indicator.style.opacity = '1';
+      const url = '/live/snapshot?t=' + Date.now();
+      const tmp = new Image();
+      tmp.onload = () => {
+        img.src = url;
+        indicator.style.opacity = '0';
+      };
+      tmp.onerror = () => {
+        indicator.style.opacity = '0';
+      };
+      tmp.src = url;
+    } catch(e) {
+      indicator.style.opacity = '0';
+    }
+  }
+
+  const interval = setInterval(refreshSnap, 3000);
+  document.addEventListener('visibilitychange', () => {
+    active = document.visibilityState === 'visible';
+  });
+</script>
+{% endif %}
+{% endblock %}

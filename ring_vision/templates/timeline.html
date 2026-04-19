@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Timeline — RingVision{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+  <div class="flex items-center justify-between">
+    <h1 class="text-2xl font-bold text-white">Timeline</h1>
+    <span class="text-sm text-gray-500">{{ events|length }} events</span>
+  </div>
+
+  <!-- Filters -->
+  <form method="get" class="card p-4">
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div>
+        <label class="label">Type</label>
+        <select name="kind" class="input">
+          <option value="">All types</option>
+          <option value="motion" {% if filters.kind == 'motion' %}selected{% endif %}>Motion</option>
+          <option value="ding" {% if filters.kind == 'ding' %}selected{% endif %}>Doorbell</option>
+        </select>
+      </div>
+      <div>
+        <label class="label">Visitor</label>
+        <select name="known" class="input">
+          <option value="">All visitors</option>
+          <option value="known" {% if filters.known == 'known' %}selected{% endif %}>Known</option>
+          <option value="unknown" {% if filters.known == 'unknown' %}selected{% endif %}>Unknown</option>
+        </select>
+      </div>
+      <div>
+        <label class="label">From</label>
+        <input type="date" name="date_from" value="{{ filters.date_from or '' }}" class="input" />
+      </div>
+      <div>
+        <label class="label">To</label>
+        <input type="date" name="date_to" value="{{ filters.date_to or '' }}" class="input" />
+      </div>
+    </div>
+    <div class="flex gap-2 mt-3">
+      <button type="submit" class="btn-primary">Filter</button>
+      <a href="/timeline" class="btn-secondary">Clear</a>
+    </div>
+  </form>
+
+  <!-- Events list -->
+  {% if events %}
+  <div class="card divide-y divide-gray-800">
+    {% for ev in events %}
+    <div class="flex items-start gap-4 p-4 hover:bg-gray-800/40 transition-colors">
+
+      <!-- Snapshot thumbnail -->
+      <div class="flex-shrink-0 w-20 h-14">
+        {% if ev['snapshot_path'] %}
+          <img src="/storage/snapshots/{{ ev['snapshot_path'].split('/')[-1] }}"
+               class="w-20 h-14 object-cover rounded-md"
+               onerror="this.parentElement.innerHTML='<div class=\'w-20 h-14 rounded-md bg-gray-800\'></div>'" />
+        {% else %}
+          <div class="w-20 h-14 rounded-md bg-gray-800 flex items-center justify-center">
+            <svg class="w-6 h-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14"/>
+            </svg>
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- Event details -->
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="text-sm font-semibold text-gray-100">
+            {% if ev['label_override'] %}{{ ev['label_override'] }}
+            {% elif ev['person_name'] %}{{ ev['person_name'] }}
+            {% else %}Unknown{% endif %}
+          </span>
+          {% if ev['person_id'] or ev['label_override'] %}
+            <span class="badge badge-green">Known</span>
+          {% else %}
+            <span class="badge badge-yellow">Unknown</span>
+          {% endif %}
+          <span class="badge bg-gray-800 text-gray-400">{{ ev['kind'] or 'motion' }}</span>
+          {% if ev['confidence'] %}
+            <span class="text-xs text-gray-500">{{ "%.0f%%"|format(ev['confidence'] * 100) }} confidence</span>
+          {% endif %}
+        </div>
+        <p class="text-xs text-gray-500 mt-0.5">{{ ev['created_at'][:19].replace('T', ' ') }}</p>
+      </div>
+
+      <!-- Relabel form -->
+      <div class="flex-shrink-0">
+        <form method="post" action="/timeline/{{ ev['id'] }}/relabel"
+              class="flex items-center gap-2">
+          <select name="person_id" class="input text-xs py-1 w-32">
+            <option value="">Unknown</option>
+            {% for person in people %}
+              <option value="{{ person['id'] }}"
+                      {% if ev['person_id'] == person['id'] %}selected{% endif %}>
+                {{ person['name'] }}
+              </option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="btn-secondary text-xs py-1 px-2">Save</button>
+        </form>
+      </div>
+
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="card p-12 text-center">
+    <p class="text-gray-500">No events found. Adjust filters or wait for Ring events to arrive.</p>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

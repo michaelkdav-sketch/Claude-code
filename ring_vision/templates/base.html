@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-gray-950">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}RingVision{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <style>
+    [x-cloak] { display: none !important; }
+    .nav-link { @apply text-gray-400 hover:text-white transition-colors px-3 py-2 rounded-md text-sm font-medium; }
+    .nav-link.active { @apply text-white bg-gray-800; }
+    .card { @apply bg-gray-900 rounded-xl border border-gray-800; }
+    .badge { @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium; }
+    .badge-red { @apply badge bg-red-900 text-red-300; }
+    .badge-green { @apply badge bg-green-900 text-green-300; }
+    .badge-yellow { @apply badge bg-yellow-900 text-yellow-300; }
+    .badge-blue { @apply badge bg-blue-900 text-blue-300; }
+    .btn { @apply inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-950; }
+    .btn-primary { @apply btn bg-indigo-600 hover:bg-indigo-500 text-white focus:ring-indigo-500; }
+    .btn-secondary { @apply btn bg-gray-700 hover:bg-gray-600 text-gray-200 focus:ring-gray-500; }
+    .btn-danger { @apply btn bg-red-700 hover:bg-red-600 text-white focus:ring-red-500; }
+    .input { @apply block w-full rounded-lg bg-gray-800 border border-gray-700 text-gray-100 placeholder-gray-500 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent; }
+    .label { @apply block text-sm font-medium text-gray-300 mb-1; }
+  </style>
+</head>
+<body class="h-full text-gray-100 font-sans antialiased">
+
+<nav class="bg-gray-900 border-b border-gray-800 sticky top-0 z-50">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex items-center justify-between h-14">
+      <div class="flex items-center gap-2">
+        <svg class="w-6 h-6 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M15 10l4.553-2.069A1 1 0 0121 8.82v6.36a1 1 0 01-1.447.89L15 14M4 6h9a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2z"/>
+        </svg>
+        <span class="font-semibold text-white tracking-tight">RingVision</span>
+      </div>
+      <div class="flex items-center gap-1">
+        <a href="/" class="nav-link {% if request.url.path == '/' %}active{% endif %}">Dashboard</a>
+        <a href="/live" class="nav-link {% if request.url.path.startswith('/live') %}active{% endif %}">Live</a>
+        <a href="/timeline" class="nav-link {% if request.url.path.startswith('/timeline') %}active{% endif %}">Timeline</a>
+        <a href="/gallery" class="nav-link {% if request.url.path.startswith('/gallery') %}active{% endif %}">Gallery</a>
+        <a href="/settings" class="nav-link {% if request.url.path.startswith('/settings') %}active{% endif %}">Settings</a>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  {% block content %}{% endblock %}
+</main>
+
+</body>
+</html>

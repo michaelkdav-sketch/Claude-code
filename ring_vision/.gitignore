@@ -1,0 +1,10 @@
+.env
+ring_vision.db
+storage/snapshots/*
+storage/gallery/*
+storage/ring_token.json
+!storage/snapshots/.gitkeep
+!storage/gallery/.gitkeep
+__pycache__/
+*.pyc
+.insightface/
