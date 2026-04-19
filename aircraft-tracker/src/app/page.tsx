@@ -1,12 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import useSWR from 'swr'
 import StatsBanner from '@/components/StatsBanner'
 import AircraftList from '@/components/AircraftList'
 import StatusBar from '@/components/StatusBar'
+import DetailPanel from '@/components/DetailPanel'
 import type { Aircraft, AppStatus } from '@/lib/providers/types'
 
 const AircraftMap = dynamic(() => import('@/components/Map'), { ssr: false })
@@ -35,7 +36,28 @@ export default function Dashboard() {
   const status: AppStatus | null = statusData?.status ?? null
 
   const [mapReady, setMapReady] = useState(false)
+  const [selectedHex, setSelectedHex] = useState<string | null>(null)
+  const [newHexes, setNewHexes] = useState<Set<string>>(new Set())
+  const prevHexes = useRef<Set<string>>(new Set())
+
   useEffect(() => { setMapReady(true) }, [])
+
+  // Track which aircraft are new since the last refresh
+  useEffect(() => {
+    if (!data?.aircraft) return
+    const current = new Set(data.aircraft.map((a) => a.hex))
+    const fresh = new Set(Array.from(current).filter((h) => !prevHexes.current.has(h)))
+    prevHexes.current = current
+    if (fresh.size === 0) return
+    setNewHexes(fresh)
+    const t = setTimeout(() => setNewHexes(new Set()), 3000)
+    return () => clearTimeout(t)
+  }, [data])
+
+  const selectedAircraft = aircraft.find((a) => a.hex === selectedHex) ?? null
+
+  const handleSelect = (hex: string) =>
+    setSelectedHex((prev) => (prev === hex ? null : hex))
 
   return (
     <div className="flex h-full flex-col">
@@ -55,9 +77,7 @@ export default function Dashboard() {
           </Link>
           <span className="h-3 w-px bg-zinc-700" />
           {config && (
-            <span className="font-mono text-zinc-600">
-              {config.radiusNm.toFixed(0)} nm radius
-            </span>
+            <span className="font-mono text-zinc-600">{config.radiusNm.toFixed(0)} nm</span>
           )}
         </nav>
       </header>
@@ -66,15 +86,13 @@ export default function Dashboard() {
       <div className="flex shrink-0 items-center gap-8 border-b border-border bg-card/40 px-6 py-3">
         <StatsBanner aircraft={aircraft} />
         {error && (
-          <p className="ml-auto text-xs text-red-400">
-            API error — showing cached data
-          </p>
+          <p className="ml-auto text-xs text-red-400">API error — showing cached data</p>
         )}
       </div>
 
       {/* Main content */}
       <div className="flex min-h-0 flex-1">
-        {/* Map — 60% */}
+        {/* Map */}
         <div className="relative flex-1">
           {mapReady && config ? (
             <AircraftMap
@@ -82,25 +100,44 @@ export default function Dashboard() {
               homeLat={config.lat}
               homeLon={config.lon}
               radiusNm={config.radiusNm}
+              selectedHex={selectedHex}
+              onAircraftClick={handleSelect}
             />
           ) : (
             <MapPlaceholder />
           )}
-
-          {/* Zoom controls hint */}
           <div className="pointer-events-none absolute bottom-4 left-4 text-xs text-zinc-700">
-            Scroll to zoom · Drag to pan
+            Scroll to zoom · Click aircraft to inspect
           </div>
         </div>
 
-        {/* Aircraft list — 40% */}
-        <div className="flex w-96 shrink-0 flex-col border-l border-border">
-          <div className="flex-1 min-h-0 overflow-hidden p-4">
+        {/* Right panel — list + slide-in detail */}
+        <div className="relative flex w-[440px] shrink-0 flex-col overflow-hidden border-l border-border">
+          {/* List (fades out when detail is open) */}
+          <div
+            className={`flex-1 min-h-0 overflow-hidden p-4 transition-opacity duration-200 ${
+              selectedAircraft ? 'opacity-0 pointer-events-none' : 'opacity-100'
+            }`}
+          >
             {isValidating && aircraft.length === 0 ? (
               <LoadingState />
             ) : (
-              <AircraftList aircraft={aircraft} />
+              <AircraftList
+                aircraft={aircraft}
+                newHexes={newHexes}
+                selectedHex={selectedHex}
+                onSelect={handleSelect}
+              />
             )}
+          </div>
+
+          {/* Detail panel slides in from the right */}
+          <div
+            className={`absolute inset-0 transition-transform duration-300 ease-out ${
+              selectedAircraft ? 'translate-x-0' : 'translate-x-full'
+            }`}
+          >
+            <DetailPanel aircraft={selectedAircraft} onClose={() => setSelectedHex(null)} />
           </div>
         </div>
       </div>

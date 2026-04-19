@@ -1,5 +1,4 @@
 import clsx from 'clsx'
-import Link from 'next/link'
 import { compassPoint } from '@/lib/geo'
 import MilitaryBadge from './MilitaryBadge'
 import type { Aircraft } from '@/lib/providers/types'
@@ -7,20 +6,24 @@ import type { Aircraft } from '@/lib/providers/types'
 interface Props {
   aircraft: Aircraft
   selected?: boolean
+  isNew?: boolean
   onClick?: () => void
 }
 
-export default function AircraftCard({ aircraft: ac, selected, onClick }: Props) {
+export default function AircraftCard({ aircraft: ac, selected, isNew, onClick }: Props) {
   const isMil =
     ac.military.label === 'likely_military' || ac.military.label === 'maybe_military'
 
   return (
-    <Link
-      href={`/aircraft/${ac.hex}`}
+    <div
+      role="button"
+      tabIndex={0}
       onClick={onClick}
+      onKeyDown={(e) => e.key === 'Enter' && onClick?.()}
       className={clsx(
-        'group block rounded-xl border p-4 transition-all duration-150',
+        'group rounded-xl border p-4 cursor-pointer transition-all duration-150',
         'hover:bg-card-hover',
+        isNew && 'aircraft-new',
         selected
           ? 'border-sky-500/60 bg-sky-500/5'
           : isMil
@@ -28,7 +31,6 @@ export default function AircraftCard({ aircraft: ac, selected, onClick }: Props)
           : 'border-border bg-card hover:border-border-bright',
       )}
     >
-      {/* Header row */}
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
@@ -46,7 +48,6 @@ export default function AircraftCard({ aircraft: ac, selected, onClick }: Props)
         <MilitaryBadge label={ac.military.label} />
       </div>
 
-      {/* Type / registration */}
       <div className="mt-2 flex items-center gap-2">
         {ac.typeCode && (
           <span className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-xs text-zinc-300">
@@ -61,9 +62,17 @@ export default function AircraftCard({ aircraft: ac, selected, onClick }: Props)
         )}
       </div>
 
-      {/* Metrics row */}
       <div className="mt-3 grid grid-cols-3 gap-x-4 gap-y-1">
-        <Metric label="Alt" value={ac.onGround ? 'GND' : ac.altitudeFt != null ? `${ac.altitudeFt.toLocaleString()} ft` : '—'} />
+        <Metric
+          label="Alt"
+          value={
+            ac.onGround
+              ? 'GND'
+              : ac.altitudeFt != null
+              ? `${ac.altitudeFt.toLocaleString()} ft`
+              : '—'
+          }
+        />
         <Metric label="Spd" value={ac.groundSpeedKt != null ? `${ac.groundSpeedKt} kt` : '—'} />
         <Metric
           label="Hdg"
@@ -71,7 +80,6 @@ export default function AircraftCard({ aircraft: ac, selected, onClick }: Props)
         />
       </div>
 
-      {/* Distance / direction */}
       {ac.distanceNm != null && (
         <div className="mt-2 flex items-center gap-1 text-xs text-zinc-500">
           <span className="text-sky-400">{ac.distanceNm.toFixed(1)} nm</span>
@@ -84,7 +92,7 @@ export default function AircraftCard({ aircraft: ac, selected, onClick }: Props)
           )}
         </div>
       )}
-    </Link>
+    </div>
   )
 }
 

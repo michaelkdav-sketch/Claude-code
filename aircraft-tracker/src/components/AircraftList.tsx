@@ -9,6 +9,9 @@ type FilterKey = 'all' | MilitaryLabel
 
 interface Props {
   aircraft: Aircraft[]
+  newHexes?: Set<string>
+  selectedHex?: string | null
+  onSelect?: (hex: string) => void
 }
 
 const FILTERS: { key: FilterKey; label: string }[] = [
@@ -18,7 +21,7 @@ const FILTERS: { key: FilterKey; label: string }[] = [
   { key: 'likely_civilian', label: 'Civilian' },
 ]
 
-export default function AircraftList({ aircraft }: Props) {
+export default function AircraftList({ aircraft, newHexes, selectedHex, onSelect }: Props) {
   const [sort, setSort] = useState<SortKey>('distance')
   const [filter, setFilter] = useState<FilterKey>('all')
   const [search, setSearch] = useState('')
@@ -50,7 +53,6 @@ export default function AircraftList({ aircraft }: Props) {
 
   return (
     <div className="flex h-full flex-col gap-3">
-      {/* Search */}
       <input
         type="search"
         placeholder="Search callsign, type…"
@@ -59,7 +61,6 @@ export default function AircraftList({ aircraft }: Props) {
         className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 outline-none focus:border-sky-500/60 focus:ring-1 focus:ring-sky-500/30"
       />
 
-      {/* Filters + sort */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex gap-1">
           {FILTERS.map((f) => (
@@ -89,17 +90,23 @@ export default function AircraftList({ aircraft }: Props) {
         </select>
       </div>
 
-      {/* Count */}
       <p className="text-xs text-zinc-600">
         {filtered.length} of {aircraft.length} aircraft
       </p>
 
-      {/* List */}
       <div className="flex-1 space-y-2 overflow-y-auto pb-4">
         {filtered.length === 0 ? (
           <EmptyState hasAircraft={aircraft.length > 0} />
         ) : (
-          filtered.map((ac) => <AircraftCard key={ac.hex} aircraft={ac} />)
+          filtered.map((ac) => (
+            <AircraftCard
+              key={ac.hex}
+              aircraft={ac}
+              selected={ac.hex === selectedHex}
+              isNew={newHexes?.has(ac.hex)}
+              onClick={() => onSelect?.(ac.hex)}
+            />
+          ))
         )}
       </div>
     </div>
