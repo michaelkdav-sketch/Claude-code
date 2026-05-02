@@ -1,4 +1,5 @@
 import type { RawAircraft, MilitaryClassification, MilitaryLabel } from './providers/types'
+import { WATCHLIST_ENTRIES } from './watchlist'
 
 // Military bases near San Diego (lat, lon, name)
 const MILITARY_BASES = [
@@ -156,7 +157,19 @@ export function classify(ac: RawAircraft): MilitaryClassification {
     }
   }
 
-  // 6. Squawk codes sometimes associated with military
+  // 6. Local watchlist — NAS North Island / MCAS Miramar known callsign prefixes
+  if (ac.callsign) {
+    const cs = ac.callsign.trim().toUpperCase()
+    for (const entry of WATCHLIST_ENTRIES) {
+      if (cs.startsWith(entry.prefix)) {
+        score += entry.scoreBonus
+        reasons.push(`Callsign matches local watchlist: ${entry.name}`)
+        break
+      }
+    }
+  }
+
+  // 7. Squawk codes sometimes associated with military
   if (ac.squawk) {
     // 7777 = military interception
     if (ac.squawk === '7777') {

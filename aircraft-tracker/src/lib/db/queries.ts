@@ -163,6 +163,113 @@ export function setPollState(lastFetchAt: number, error: string | null): void {
   upsert.run('last_error', error ?? '')
 }
 
+// ── Statistics ────────────────────────────────────────────────────────────────
+
+export interface StatsSummary {
+  totalEvents: number
+  militaryEvents: number
+  uniqueTypes: number
+  busiestHour: number | null
+}
+
+export function getStatsSummary(): StatsSummary {
+  const db = getDb()
+  const since = Date.now() - 7 * 24 * 60 * 60 * 1000
+
+  const total = (db.prepare(`SELECT COUNT(*) as n FROM overhead_events WHERE last_seen >= ?`).get(since) as { n: number }).n
+  const military = (db.prepare(`SELECT COUNT(*) as n FROM overhead_events WHERE last_seen >= ? AND mil_label IN ('likely_military','maybe_military')`).get(since) as { n: number }).n
+  const uniqueTypes = (db.prepare(`SELECT COUNT(DISTINCT type_code) as n FROM overhead_events WHERE last_seen >= ? AND type_code IS NOT NULL`).get(since) as { n: number }).n
+
+  const busiestRow = db.prepare(`
+    SELECT CAST(strftime('%H', datetime(first_seen/1000, 'unixepoch', 'localtime')) AS INTEGER) AS hour,
+           COUNT(*) AS cnt
+    FROM overhead_events WHERE last_seen >= ?
+    GROUP BY hour ORDER BY cnt DESC LIMIT 1
+  `).get(since) as { hour: number; cnt: number } | undefined
+
+  return { totalEvents: total, militaryEvents: military, uniqueTypes, busiestHour: busiestRow?.hour ?? null }
+}
+
+export function getTopTypes(limit = 15): { typeCode: string; count: number }[] {
+  const db = getDb()
+  const since = Date.now() - 7 * 24 * 60 * 60 * 1000
+  return (db.prepare(`
+    SELECT type_code as typeCode, COUNT(*) as count
+    FROM overhead_events WHERE last_seen >= ? AND type_code IS NOT NULL
+    GROUP BY type_code ORDER BY count DESC LIMIT ?
+  `).all(since, limit) as { typeCode: string; count: number }[])
+}
+
+export function getHourlyActivity(): { hour: number; count: number }[] {
+  const db = getDb()
+  const since = Date.now() - 24 * 60 * 60 * 1000
+  const rows = db.prepare(`
+    SELECT CAST(strftime('%H', datetime(first_seen/1000, 'unixepoch', 'localtime')) AS INTEGER) AS hour,
+           COUNT(*) AS count
+    FROM overhead_events WHERE last_seen >= ?
+    GROUP BY hour ORDER BY hour
+  `).all(since) as { hour: number; count: number }[]
+
+  // Fill all 24 hours
+  const byHour = new Map(rows.map((r) => [r.hour, r.count]))
+  return Array.from({ length: 24 }, (_, h) => ({ hour: h, count: byHour.get(h) ?? 0 }))
+}
+
+// ── Daily digest ──────────────────────────────────────────────────────────────
+
+export interface DailyDigest {
+  todayCount: number
+  militaryCount: number
+  newFirstSightings: number
+  topCallsign: string | null
+}
+
+export function getDailyDigest(): DailyDigest {
+  const db = getDb()
+  const startOfDay = new Date()
+  startOfDay.setHours(0, 0, 0, 0)
+  const dayStart = startOfDay.getTime()
+
+  const todayCount = (db.prepare(`SELECT COUNT(*) as n FROM overhead_events WHERE last_seen >= ?`).get(dayStart) as { n: number }).n
+  const militaryCount = (db.prepare(`SELECT COUNT(*) as n FROM overhead_events WHERE last_seen >= ? AND mil_label IN ('likely_military','maybe_military')`).get(dayStart) as { n: number }).n
+  const newFirstSightings = (db.prepare(`SELECT COUNT(*) as n FROM overhead_events WHERE first_seen >= ?`).get(dayStart) as { n: number }).n
+  const topRow = db.prepare(`
+    SELECT callsign FROM overhead_events
+    WHERE last_seen >= ? AND callsign IS NOT NULL
+    ORDER BY snapshot_count DESC LIMIT 1
+  `).get(dayStart) as { callsign: string } | undefined
+
+  return { todayCount, militaryCount, newFirstSightings, topCallsign: topRow?.callsign ?? null }
+}
+
+// ── FAA registrations ─────────────────────────────────────────────────────────
+
+export interface FaaRegistration {
+  registration: string
+  owner: string | null
+  aircraftMfr: string | null
+  aircraftModel: string | null
+  state: string | null
+}
+
+export function getFaaRegistration(registration: string): FaaRegistration | null {
+  const db = getDb()
+  const reg = registration.replace(/^N/, '').toUpperCase()
+  const row = db.prepare(`
+    SELECT registration, owner, aircraft_mfr, aircraft_model, state
+    FROM faa_registrations WHERE registration = ?
+  `).get('N' + reg) as Record<string, string | null> | undefined
+
+  if (!row) return null
+  return {
+    registration: row.registration as string,
+    owner: row.owner,
+    aircraftMfr: row.aircraft_mfr,
+    aircraftModel: row.aircraft_model,
+    state: row.state,
+  }
+}
+
 // ── Pruning ───────────────────────────────────────────────────────────────────
 
 export function pruneOldData(maxAgeDays: number): void {

@@ -53,5 +53,13 @@ export function initSchema(db: Database): void {
       key   TEXT PRIMARY KEY,
       value TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS faa_registrations (
+      registration   TEXT PRIMARY KEY,
+      owner          TEXT,
+      aircraft_mfr   TEXT,
+      aircraft_model TEXT,
+      state          TEXT
+    );
   `)
 }

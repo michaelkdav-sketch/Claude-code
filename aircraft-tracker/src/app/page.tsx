@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import useSWR from 'swr'
@@ -8,6 +8,8 @@ import StatsBanner from '@/components/StatsBanner'
 import AircraftList from '@/components/AircraftList'
 import StatusBar from '@/components/StatusBar'
 import DetailPanel from '@/components/DetailPanel'
+import DigestBanner from '@/components/DigestBanner'
+import { useFavorites } from '@/lib/useFavorites'
 import type { Aircraft, AppStatus } from '@/lib/providers/types'
 
 const AircraftMap = dynamic(() => import('@/components/Map'), { ssr: false })
@@ -18,6 +20,15 @@ interface AircraftResponse {
   aircraft: Aircraft[]
   config: { lat: number; lon: number; radiusNm: number }
   fetchedAt: number
+}
+
+interface DigestResponse {
+  digest: {
+    todayCount: number
+    militaryCount: number
+    newFirstSightings: number
+    topCallsign: string | null
+  }
 }
 
 export default function Dashboard() {
@@ -31,6 +42,11 @@ export default function Dashboard() {
     revalidateOnFocus: false,
   })
 
+  const { data: digestData } = useSWR<DigestResponse>('/api/stats', fetcher, {
+    refreshInterval: 60_000,
+    revalidateOnFocus: false,
+  })
+
   const aircraft = data?.aircraft ?? []
   const config = data?.config
   const status: AppStatus | null = statusData?.status ?? null
@@ -39,6 +55,8 @@ export default function Dashboard() {
   const [selectedHex, setSelectedHex] = useState<string | null>(null)
   const [newHexes, setNewHexes] = useState<Set<string>>(new Set())
   const prevHexes = useRef<Set<string>>(new Set())
+
+  const { favs, toggle: toggleFavorite, isFavorite } = useFavorites()
 
   useEffect(() => { setMapReady(true) }, [])
 
@@ -53,6 +71,53 @@ export default function Dashboard() {
     const t = setTimeout(() => setNewHexes(new Set()), 3000)
     return () => clearTimeout(t)
   }, [data])
+
+  // Sorted aircraft list — shared with keyboard navigation
+  const sortedAircraft = useMemo(
+    () => [...aircraft].sort((a, b) => (a.distanceNm ?? 999) - (b.distanceNm ?? 999)),
+    [aircraft],
+  )
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+
+      if (e.key === 'Escape') {
+        setSelectedHex(null)
+        return
+      }
+
+      if (e.key === 'ArrowDown' || e.key === 'j') {
+        e.preventDefault()
+        setSelectedHex((prev) => {
+          if (sortedAircraft.length === 0) return prev
+          const idx = sortedAircraft.findIndex((a) => a.hex === prev)
+          return sortedAircraft[(idx + 1) % sortedAircraft.length].hex
+        })
+        return
+      }
+
+      if (e.key === 'ArrowUp' || e.key === 'k') {
+        e.preventDefault()
+        setSelectedHex((prev) => {
+          if (sortedAircraft.length === 0) return prev
+          const idx = sortedAircraft.findIndex((a) => a.hex === prev)
+          const next = idx <= 0 ? sortedAircraft.length - 1 : idx - 1
+          return sortedAircraft[next].hex
+        })
+        return
+      }
+
+      if (e.key === 'f' && selectedHex) {
+        toggleFavorite(selectedHex)
+        return
+      }
+    }
+
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [sortedAircraft, selectedHex, toggleFavorite])
 
   // Fetch per-aircraft track when something is selected
   const { data: detailData } = useSWR(
@@ -86,12 +151,18 @@ export default function Dashboard() {
           <Link href="/history" className="hover:text-zinc-200 transition-colors">
             History
           </Link>
+          <Link href="/stats" className="hover:text-zinc-200 transition-colors">
+            Stats
+          </Link>
           <span className="h-3 w-px bg-zinc-700" />
           {config && (
             <span className="font-mono text-zinc-600">{config.radiusNm.toFixed(0)} nm</span>
           )}
         </nav>
       </header>
+
+      {/* Digest banner — only shown when there's something interesting */}
+      {digestData?.digest && <DigestBanner digest={digestData.digest} />}
 
       {/* Stats */}
       <div className="flex shrink-0 items-center gap-8 border-b border-border bg-card/40 px-6 py-3">
@@ -119,7 +190,7 @@ export default function Dashboard() {
             <MapPlaceholder />
           )}
           <div className="pointer-events-none absolute bottom-4 left-4 text-xs text-zinc-700">
-            Scroll to zoom · Click aircraft to inspect
+            Scroll to zoom · Click to inspect · j/k cycle · Esc close · f favorite
           </div>
         </div>
 
@@ -138,7 +209,9 @@ export default function Dashboard() {
                 aircraft={aircraft}
                 newHexes={newHexes}
                 selectedHex={selectedHex}
+                favHexes={favs}
                 onSelect={handleSelect}
+                onFavoriteToggle={toggleFavorite}
               />
             )}
           </div>
@@ -153,6 +226,8 @@ export default function Dashboard() {
               aircraft={selectedAircraft}
               onClose={() => setSelectedHex(null)}
               trackPointCount={trackPoints.length}
+              isFavorite={selectedHex ? isFavorite(selectedHex) : false}
+              onFavoriteToggle={selectedHex ? () => toggleFavorite(selectedHex) : undefined}
             />
           </div>
         </div>

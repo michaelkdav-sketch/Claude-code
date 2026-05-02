@@ -69,6 +69,7 @@ export interface Aircraft {
   military: MilitaryClassification
   fetchedAt: number
   source: string
+  inFormation?: boolean
 }
 
 export interface OverheadEvent {

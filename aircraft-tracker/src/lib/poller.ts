@@ -1,10 +1,17 @@
 import { AdsbLolProvider } from './providers/adsb-lol'
+import { Dump1090Provider } from './providers/dump1090'
 import { classify } from './military'
+import { detectFormations } from './formation'
 import { milesToNm } from './geo'
 import { insertSnapshot, upsertOverheadEvent, setPollState, pruneOldData } from './db/queries'
-import type { Aircraft, AppStatus } from './providers/types'
+import type { Aircraft, AircraftProvider, AppStatus } from './providers/types'
 
-const provider = new AdsbLolProvider()
+function selectProvider(): AircraftProvider {
+  if (process.env.PROVIDER === 'dump1090') return new Dump1090Provider()
+  return new AdsbLolProvider()
+}
+
+const provider = selectProvider()
 
 const HOME_LAT = parseFloat(process.env.HOME_LAT ?? '32.7280')
 const HOME_LON = parseFloat(process.env.HOME_LON ?? '-117.2385')
@@ -70,6 +77,12 @@ export async function pollNow(): Promise<Aircraft[]> {
       fetchedAt: raw.fetchedAt,
       source: feed.source,
     }))
+
+    // Detect formation flying
+    const formationHexes = detectFormations(aircraft)
+    for (const ac of aircraft) {
+      ac.inFormation = formationHexes.has(ac.hex)
+    }
 
     // Persist to DB (async-ish via sync SQLite — fast enough for personal use)
     for (const ac of aircraft) {

@@ -11,7 +11,9 @@ interface Props {
   aircraft: Aircraft[]
   newHexes?: Set<string>
   selectedHex?: string | null
+  favHexes?: Set<string>
   onSelect?: (hex: string) => void
+  onFavoriteToggle?: (hex: string) => void
 }
 
 const FILTERS: { key: FilterKey; label: string }[] = [
@@ -21,10 +23,18 @@ const FILTERS: { key: FilterKey; label: string }[] = [
   { key: 'likely_civilian', label: 'Civilian' },
 ]
 
-export default function AircraftList({ aircraft, newHexes, selectedHex, onSelect }: Props) {
+export default function AircraftList({
+  aircraft,
+  newHexes,
+  selectedHex,
+  favHexes,
+  onSelect,
+  onFavoriteToggle,
+}: Props) {
   const [sort, setSort] = useState<SortKey>('distance')
   const [filter, setFilter] = useState<FilterKey>('all')
   const [search, setSearch] = useState('')
+  const [compact, setCompact] = useState(false)
 
   const filtered = aircraft
     .filter((a) => filter === 'all' || a.military.label === filter)
@@ -39,6 +49,11 @@ export default function AircraftList({ aircraft, newHexes, selectedHex, onSelect
       )
     })
     .sort((a, b) => {
+      // Favorites always sort to top
+      const aFav = favHexes?.has(a.hex) ? 0 : 1
+      const bFav = favHexes?.has(b.hex) ? 0 : 1
+      if (aFav !== bFav) return aFav - bFav
+
       switch (sort) {
         case 'distance':
           return (a.distanceNm ?? 999) - (b.distanceNm ?? 999)
@@ -78,23 +93,37 @@ export default function AircraftList({ aircraft, newHexes, selectedHex, onSelect
           ))}
         </div>
 
-        <select
-          value={sort}
-          onChange={(e) => setSort(e.target.value as SortKey)}
-          className="rounded-md border border-border bg-card px-2 py-1 text-xs text-zinc-400 outline-none"
-        >
-          <option value="distance">Distance</option>
-          <option value="altitude">Altitude</option>
-          <option value="military">Military score</option>
-          <option value="callsign">Callsign</option>
-        </select>
+        <div className="flex items-center gap-2">
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as SortKey)}
+            className="rounded-md border border-border bg-card px-2 py-1 text-xs text-zinc-400 outline-none"
+          >
+            <option value="distance">Distance</option>
+            <option value="altitude">Altitude</option>
+            <option value="military">Military score</option>
+            <option value="callsign">Callsign</option>
+          </select>
+
+          {/* Compact / card toggle */}
+          <button
+            onClick={() => setCompact((c) => !c)}
+            className={`rounded-md px-2 py-1 text-xs transition-colors ${
+              compact ? 'bg-sky-500/20 text-sky-300' : 'text-zinc-600 hover:text-zinc-300'
+            }`}
+            title={compact ? 'Card view' : 'Compact view'}
+            aria-label={compact ? 'Switch to card view' : 'Switch to compact view'}
+          >
+            {compact ? '▤' : '☰'}
+          </button>
+        </div>
       </div>
 
       <p className="text-xs text-zinc-600">
         {filtered.length} of {aircraft.length} aircraft
       </p>
 
-      <div className="flex-1 space-y-2 overflow-y-auto pb-4">
+      <div className={`flex-1 overflow-y-auto pb-4 ${compact ? 'space-y-px' : 'space-y-2'}`}>
         {filtered.length === 0 ? (
           <EmptyState hasAircraft={aircraft.length > 0} />
         ) : (
@@ -104,7 +133,17 @@ export default function AircraftList({ aircraft, newHexes, selectedHex, onSelect
               aircraft={ac}
               selected={ac.hex === selectedHex}
               isNew={newHexes?.has(ac.hex)}
+              isFavorite={favHexes?.has(ac.hex)}
+              compact={compact}
               onClick={() => onSelect?.(ac.hex)}
+              onFavoriteToggle={
+                onFavoriteToggle
+                  ? (e) => {
+                      e.stopPropagation()
+                      onFavoriteToggle(ac.hex)
+                    }
+                  : undefined
+              }
             />
           ))
         )}

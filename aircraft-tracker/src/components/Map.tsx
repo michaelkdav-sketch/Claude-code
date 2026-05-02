@@ -7,18 +7,31 @@ import 'leaflet/dist/leaflet.css'
 import { compassPoint } from '@/lib/geo'
 import type { Aircraft } from '@/lib/providers/types'
 
-const MIL_COLORS: Record<string, string> = {
-  likely_military: '#fb923c',
-  maybe_military: '#fbbf24',
-  likely_civilian: '#34d399',
-  unknown: '#71717a',
+function altitudeColor(ac: Aircraft): string {
+  if (ac.onGround) return '#71717a'
+  const ft = ac.altitudeFt ?? 0
+  if (ft < 3_000) return '#ef4444'
+  if (ft < 10_000) return '#f97316'
+  if (ft < 25_000) return '#eab308'
+  if (ft < 40_000) return '#3b82f6'
+  return '#818cf8'
+}
+
+function isMilitary(ac: Aircraft): boolean {
+  return ac.military.label === 'likely_military' || ac.military.label === 'maybe_military'
 }
 
 function makeAircraftIcon(ac: Aircraft, selected: boolean): L.DivIcon {
-  const color = MIL_COLORS[ac.military.label] ?? '#71717a'
+  const color = altitudeColor(ac)
   const rotation = ac.trackDeg ?? 0
   const size = selected ? 30 : 22
   const glow = selected ? `drop-shadow(0 0 6px ${color})` : 'none'
+  const mil = isMilitary(ac)
+
+  // Military → diamond shape; civilian → arrow
+  const svgPath = mil
+    ? `M12 2L22 12L12 22L2 12Z`
+    : `M12 2.5L15.5 9.5H21L16.5 14.5L17.5 22L12 18.5L6.5 22L7.5 14.5L3 9.5H8.5Z`
 
   return L.divIcon({
     className: '',
@@ -26,7 +39,7 @@ function makeAircraftIcon(ac: Aircraft, selected: boolean): L.DivIcon {
     iconAnchor: [size / 2, size / 2],
     html: `<div style="width:${size}px;height:${size}px;transform:rotate(${rotation}deg);transition:transform 0.4s;filter:${glow}">
       <svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="${color}" xmlns="http://www.w3.org/2000/svg">
-        <path stroke="rgba(0,0,0,0.4)" stroke-width="0.8" d="M12 2.5L15.5 9.5H21L16.5 14.5L17.5 22L12 18.5L6.5 22L7.5 14.5L3 9.5H8.5Z"/>
+        <path stroke="rgba(0,0,0,0.4)" stroke-width="0.8" d="${svgPath}"/>
       </svg>
     </div>`,
   })
@@ -134,7 +147,10 @@ export default function AircraftMap({
           >
             <Tooltip direction="top" offset={[0, -10]}>
               <div style={{ fontSize: 12, lineHeight: 1.5 }}>
-                <p style={{ fontWeight: 600 }}>{ac.callsign ?? ac.hex.toUpperCase()}</p>
+                <p style={{ fontWeight: 600 }}>
+                  {ac.callsign ?? ac.hex.toUpperCase()}
+                  {ac.inFormation && <span style={{ marginLeft: 4, color: '#a78bfa' }}>⟡ formation</span>}
+                </p>
                 {ac.typeCode && <p style={{ color: '#aaa' }}>{ac.typeCode}{ac.typeDescription ? ` · ${ac.typeDescription}` : ''}</p>}
                 {ac.altitudeFt != null && (
                   <p>{ac.altitudeFt.toLocaleString()} ft · {ac.groundSpeedKt} kt</p>
